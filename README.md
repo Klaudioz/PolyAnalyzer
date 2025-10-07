@@ -13,77 +13,76 @@ Key outputs:
 
 This programme is ideal for identifying high-yield, low-risk LP opportunities in events like earnings bets or geopolitics.
 
-**Features**.
+**Features**
 
-(a) Market Sampling: Pulls all active Polymarket markets with rewards enabled.
-(b) Order Book Analysis: Simulates LP rewards based on bid/ask depth near midpoint.
-(c) Volatility Calculation: Annualized std dev of log returns from 1m price history.
-(d) Risk-Adjusted Ranking: Composite scores balancing rewards, vol, and price balance.
-(e) Output Options: Local CSVs stored in the CSV/ folder.
-(f) Parallel Processing: Fast execution with threading for order books and volatility.
+- Market Sampling: Pulls all active Polymarket markets with rewards enabled.
+- Order Book Analysis: Simulates LP rewards based on bid/ask depth near midpoint.
+- Volatility Calculation: Annualized std dev of log returns from 1m price history.
+- Risk-Adjusted Ranking: Composite scores balancing rewards, vol, and price balance.
+- Output Options: Local CSVs stored in the CSV/ folder.
+- Parallel Processing: Fast execution with threading for order books and volatility.
 
 **Prerequisites**
 
-Python 3.8+.
-A Polymarket wallet (on Polygon) with USDC for LP (optional for data fetch).
-GitHub account for repo access (if forking).
+- Python 3.8+
+- A Polymarket wallet (on Polygon) with USDC for LP (optional for data fetch)
 
-Setup
-1. Clone the Repo
-bashgit clone https://github.com/terrytrl100/prediction_markets_test.git
+## Setup
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/terrytrl100/prediction_markets_test.git
 cd prediction_markets_test
+```
 
-3. Create Virtual Environment
-bashpython -m venv .venv
+### 2. Create Virtual Environment
+```bash
+python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
 
-4. Install Dependencies
-pip install -r requirements.txt  # Assumes you add one; see below for manual
-Manual install (core libs):
-pip install py-clob-client pandas numpy requests python-dotenv web3
+### 3. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
 
-5. Configure Environment Variables (.env)
-Create a .env file in the root directory (ignored by Git). Add your Polymarket wallet details:
-textPK=your_polygon_private_key_here  # Hex string, e.g., 0xabc123... (no 0x prefix if raw)
+### 4. Configure Environment Variables (.env)
+Create a `.env` file in the root directory (ignored by Git). Add your Polymarket wallet details:
 
-PK: Your Polygon private key (from wallet like MetaMask). Warning: This enables API/trading—use a dev wallet with minimal funds. Never commit .env!
+```
+PK=your_polygon_private_key_here
+```
 
-**Usage**
-Run the Script
-bashpython data_updater.py
+**Note:** Your private key should be a hex string (e.g., 0xabc123...). This enables API/trading functionality—use a development wallet with minimal funds. Never commit your `.env` file!
 
-Fetches ~1000+ markets.
+## Usage
 
-**Outputs:**
-CSV/all_markets.csv: Full ranked list.
-CSV/volatility_markets.csv: Low-vol (<20 sum) subset.
-CSV/full_markets.csv: Raw order book data.
-Console: Top 10 by rewards + progress logs.
+Run the main script:
+```bash
+python data_updater.py
+```
 
+The script will fetch ~1000+ markets (runtime: 2–5 minutes depending on API rate limits).
 
-Runtime: 2–5 min (depends on API rate limits).
+### Output Files
 
-Example Output
-textTop 10 Markets (by gm_reward_per_100):
-[Table of markets with rewards, vol, odds...]
-Trading/LP Integration (Advanced)
+- `CSV/all_markets.csv`: Full ranked list of all markets
+- `CSV/volatility_markets.csv`: Low-volatility markets subset (volatility_sum < 20)
+- `CSV/full_markets.csv`: Raw order book data
+- Console output: Top 10 markets by rewards + progress logs
 
-Use approveContracts() to approve USDC/CTF (run once).
-market_action(marketId, 'BUY'/'SELL', price, size): Place orders.
-get_position(marketId): Check holdings value.
+### Example Console Output
+```
+Top 10 Markets (by gm_reward_per_100):
+[Table of markets with rewards, volatility, and odds...]
+```
 
-Dependencies
-Add to requirements.txt:
-textpy-clob-client==0.25.0
-pandas==2.2.2
-numpy==1.26.4
-requests==2.32.3
-python-dotenv==1.0.1
-web3==6.15.1
-Contributing
+## Trading/LP Integration (Advanced)
 
-Fork the repo.
-Create a feature branch (git checkout -b feat/amazing-feature).
-Commit changes (git commit -m 'Add some feature').
-Push (git push origin feat/amazing-feature).
-Open a Pull Request.
+The project includes utility functions for advanced trading operations:
+
+- `approveContracts()`: Approve USDC/CTF contracts (run once per wallet)
+- `market_action(marketId, 'BUY'/'SELL', price, size)`: Place orders on markets
+- `get_position(marketId)`: Check current holdings value
+
+**Warning:** These functions interact with real smart contracts on Polygon. Use with caution and only with funds you can afford to lose.
