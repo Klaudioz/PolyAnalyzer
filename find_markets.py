@@ -1,8 +1,26 @@
+"""
+Polymarket Market Discovery Module
+
+This module contains utility functions for discovering and analyzing Polymarket markets.
+These functions are used internally by data_updater.py but can also be imported
+for custom analysis scripts.
+
+Main Functions:
+    - get_sel_df(): Load selected markets from CSV
+    - get_all_markets(): Fetch all active markets from API
+    - process_single_row(): Calculate LP rewards for a single market
+    - get_all_results(): Process multiple markets in parallel
+    - add_volatility(): Calculate volatility metrics for a market
+    - get_markets(): Rank and filter markets by reward potential
+
+Note: This module is primarily for internal use. Most users should use data_updater.py
+      instead of calling these functions directly.
+"""
+
 import pandas as pd
 import numpy as np
 import os
 import requests
-import time
 import warnings
 import concurrent.futures
 warnings.filterwarnings("ignore")

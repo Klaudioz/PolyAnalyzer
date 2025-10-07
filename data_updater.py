@@ -1,10 +1,29 @@
-import time
+"""
+Polymarket LP Data Fetcher - Main Module
+
+This module fetches and analyzes Polymarket prediction markets for Liquidity Providers (LPs).
+It calculates estimated rewards, volatility metrics, and risk-adjusted rankings.
+
+Main Functions:
+    - fetch_and_process_data(): Main entry point - fetches all market data and saves to CSV
+    - get_clob_client(): Creates authenticated Polymarket API client
+    - get_all_markets(): Fetches all active markets with rewards enabled
+    - add_volatility_to_df(): Calculates annualized volatility metrics
+    - get_markets(): Processes and ranks markets by reward potential
+
+Usage:
+    python data_updater.py
+
+Output Files:
+    - CSV/all_markets.csv: Full ranked list of markets
+    - CSV/volatility_markets.csv: Low-volatility market subset
+    - CSV/full_markets.csv: Raw order book data
+"""
+
 import pandas as pd
 import os
 import requests
 import warnings
-import json
-import traceback
 from dotenv import load_dotenv
 import concurrent.futures
 import numpy as np
@@ -18,6 +37,18 @@ from py_clob_client.client import ClobClient
 
 
 def get_clob_client():
+    """
+    Create and authenticate a Polymarket CLOB (Central Limit Order Book) client.
+    
+    Uses the private key from environment variable 'PK' to create API credentials.
+    No funds are required in the wallet for read-only data fetching.
+    
+    Returns:
+        ClobClient: Authenticated Polymarket API client, or None if authentication fails
+        
+    Environment Variables:
+        PK: Polygon wallet private key (hex string)
+    """
     host = "https://clob.polymarket.com"
     key = os.getenv("PK")
     chain_id = POLYGON
@@ -32,9 +63,7 @@ def get_clob_client():
         client.set_api_creds(api_creds)
         return client
     except Exception as ex:
-        print("Error creating clob client")
-        print("________________")
-        print(ex)
+        print("Error creating clob client. Please check your PK environment variable and network connection.")
         return None
 
 
@@ -46,6 +75,18 @@ if not os.path.exists('data'):
 
 
 def get_sel_df(csv_path='CSV/selected_markets.csv'):
+    """
+    Load selected markets from CSV file.
+    
+    Reads a CSV containing user-selected markets for tracking or exclusion.
+    Returns empty DataFrame if file doesn't exist.
+    
+    Args:
+        csv_path (str): Path to selected markets CSV file
+        
+    Returns:
+        pd.DataFrame: DataFrame containing selected markets with non-empty questions
+    """
     try:
         if os.path.exists(csv_path):
             sel_df = pd.read_csv(csv_path)
@@ -61,6 +102,21 @@ def get_sel_df(csv_path='CSV/selected_markets.csv'):
 
 
 def get_all_markets(client):
+    """
+    Fetch all active Polymarket markets with rewards enabled.
+    
+    Uses pagination to retrieve complete list of markets from Polymarket API.
+    Each market includes tokens, rewards info, and market metadata.
+    
+    Args:
+        client (ClobClient): Authenticated Polymarket API client
+        
+    Returns:
+        pd.DataFrame: DataFrame containing all markets with columns like question, tokens, rewards, etc.
+        
+    Raises:
+        ValueError: If no markets are fetched from API
+    """
     cursor = ""
     all_markets = []
 
@@ -522,8 +578,8 @@ def fetch_and_process_data():
         print(new_df.head(10).to_string(index=False))
 
     except Exception as e:
-        print(f"Error in fetch_and_process_data: {str(e)}")
-        traceback.print_exc()
+        print(f"Error in fetch_and_process_data. Please check your configuration and try again.")
+        print(f"Error type: {type(e).__name__}")
 
 
 if __name__ == "__main__":
