@@ -4,22 +4,15 @@ import os
 import requests
 import warnings
 import json
-import re
 import traceback
-from io import StringIO
 from dotenv import load_dotenv
 import concurrent.futures
 import numpy as np
-from google.oauth2.service_account import Credentials
-import gspread
-from gspread_dataframe import set_with_dataframe
-import urllib.parse
 
 load_dotenv()
 
 warnings.filterwarnings("ignore")
 
-# Inline get_clob_client
 from py_clob_client.constants import POLYGON
 from py_clob_client.client import ClobClient
 
@@ -45,79 +38,23 @@ def get_clob_client():
         return None
 
 
-# Inline get_spreadsheet and ReadOnly classes
-def get_spreadsheet(read_only=True):
-    spreadsheet_url = os.getenv("SPREADSHEET_URL")
-    if not spreadsheet_url:
-        print("Warning: SPREADSHEET_URL not set. Skipping Sheet reads—using empty selected markets.")
-        return None
-
-    creds_file = 'credentials.json' if os.path.exists('credentials.json') else '../credentials.json'
-
-    if not os.path.exists(creds_file):
-        print(f"Note: No credentials found at {creds_file}. Using read-only mode.")
-        return ReadOnlySpreadsheet(spreadsheet_url)
-
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    credentials = Credentials.from_service_account_file(creds_file, scopes=scope)
-    client = gspread.authorize(credentials)
-    spreadsheet = client.open_by_url(spreadsheet_url)
-    print("Authenticated access to Sheets enabled.")
-    return spreadsheet
-
-
-class ReadOnlySpreadsheet:
-    def __init__(self, spreadsheet_url):
-        self.spreadsheet_url = spreadsheet_url
-        self.sheet_id = self._extract_sheet_id(spreadsheet_url)
-
-    def _extract_sheet_id(self, url):
-        match = re.search(r'/spreadsheets/d/([a-zA-Z0-9-_]+)', url)
-        if not match:
-            raise ValueError("Invalid Google Sheets URL")
-        return match.group(1)
-
-    def worksheet(self, title):
-        return ReadOnlyWorksheet(self.sheet_id, title)
-
-
-class ReadOnlyWorksheet:
-    def __init__(self, sheet_id, title):
-        self.sheet_id = sheet_id
-        self.title = title
-
-    def get_all_records(self):
-        try:
-            encoded_title = urllib.parse.quote(self.title)
-            csv_url = f"https://docs.google.com/spreadsheets/d/{self.sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_title}"
-            response = requests.get(csv_url, timeout=30)
-            response.raise_for_status()
-
-            df = pd.read_csv(StringIO(response.text))
-            if not df.empty and len(df.columns) > 0:
-                return df.to_dict('records')
-            print(f"Warning: Empty data for sheet '{self.title}'.")
-            return []
-        except Exception as e:
-            print(f"Warning: Could not fetch data from sheet '{self.title}': {e}")
-            return []
-
-
 # All find_markets functions
+if not os.path.exists('CSV'):
+    os.makedirs('CSV')
 if not os.path.exists('data'):
     os.makedirs('data')
 
 
-def get_sel_df(spreadsheet, sheet_name='Selected Markets'):
-    if spreadsheet is None:
-        print("No spreadsheet access. Returning empty selected_df.")
-        return pd.DataFrame()
+def get_sel_df(csv_path='CSV/selected_markets.csv'):
     try:
-        wk2 = spreadsheet.worksheet(sheet_name)
-        sel_df = pd.DataFrame(wk2.get_all_records())
-        sel_df = sel_df[sel_df['question'] != ""].reset_index(drop=True)
-        print(f"Loaded {len(sel_df)} selected markets from sheet.")
-        return sel_df
+        if os.path.exists(csv_path):
+            sel_df = pd.read_csv(csv_path)
+            sel_df = sel_df[sel_df['question'] != ""].reset_index(drop=True)
+            print(f"Loaded {len(sel_df)} selected markets from CSV.")
+            return sel_df
+        else:
+            print(f"No selected markets CSV found at {csv_path}. Returning empty dataframe.")
+            return pd.DataFrame()
     except Exception as e:
         print(f"Error loading selected markets: {e}")
         return pd.DataFrame()
@@ -479,35 +416,15 @@ def get_markets(all_results, sel_df, maker_reward=1):
 
 
 # Core functions
-def update_sheet(data, worksheet, filename=None):
+def save_to_csv(data, filename):
     if data.empty:
         print("Empty data, skipping save.")
         return
-    # Fallback to local CSV save if no write access or worksheet is None
-    if worksheet is None or filename:
+    try:
         data.to_csv(filename, index=False)
-        print(f"Saved {filename} locally (read-only mode).")
-    else:
-        # Attempt write if authenticated
-        try:
-            all_values = worksheet.get_all_values()
-            existing_num_rows = len(all_values)
-            existing_num_cols = len(all_values[0]) if all_values else 0
-
-            num_rows, num_cols = data.shape
-            max_rows = max(num_rows, existing_num_rows)
-            max_cols = max(num_cols, existing_num_cols)
-
-            padded_data = pd.DataFrame('', index=range(max_rows), columns=range(max_cols))
-
-            padded_data.iloc[:num_rows, :num_cols] = data.values
-            padded_data.columns = list(data.columns) + [''] * (max_cols - num_cols)
-
-            set_with_dataframe(worksheet, padded_data, include_index=False, include_column_header=True, resize=True)
-            print("Sheet updated successfully!")
-        except Exception as e:
-            print(f"Write failed: {e}. Saving locally instead.")
-            data.to_csv('fallback_all_markets.csv', index=False)
+        print(f"Saved {filename}")
+    except Exception as e:
+        print(f"Error saving CSV {filename}: {e}")
 
 
 def sort_df(df):
@@ -554,17 +471,12 @@ def sort_df(df):
 
 def fetch_and_process_data():
     try:
-        spreadsheet = get_spreadsheet(read_only=True)
         client = get_clob_client()
 
         if client is None:
             raise ValueError("Failed to create ClobClient. Check PK env var.")
 
-        wk_all = spreadsheet.worksheet("All Markets") if spreadsheet else None
-        wk_vol = spreadsheet.worksheet("Volatility Markets") if spreadsheet else None
-        wk_full = spreadsheet.worksheet("Full Markets") if spreadsheet else None
-
-        sel_df = get_sel_df(spreadsheet, "Selected Markets")
+        sel_df = get_sel_df('CSV/selected_markets.csv')
 
         all_df = get_all_markets(client)
         print("Got all Markets")
@@ -600,10 +512,10 @@ def fetch_and_process_data():
 
         print(f'{pd.to_datetime("now")}: Fetched select market of length {len(new_df)}.')
 
-        # Save locally
-        update_sheet(new_df, wk_all, 'data/all_markets.csv')
-        update_sheet(volatility_df, wk_vol, 'data/volatility_markets.csv')
-        update_sheet(m_data, wk_full, 'data/full_markets.csv')
+        # Save to CSV
+        save_to_csv(new_df, 'CSV/all_markets.csv')
+        save_to_csv(volatility_df, 'CSV/volatility_markets.csv')
+        save_to_csv(m_data, 'CSV/full_markets.csv')
 
         # Print sample top 10
         print("\nTop 10 Markets (by gm_reward_per_100):")

@@ -4,19 +4,27 @@ import os
 import requests
 import time
 import warnings
+import concurrent.futures
 warnings.filterwarnings("ignore")
 
 
+if not os.path.exists('CSV'):
+    os.makedirs('CSV')
 if not os.path.exists('data'):
     os.makedirs('data')
 
-def get_sel_df(spreadsheet, sheet_name='Selected Markets'):
+def get_sel_df(csv_path='CSV/selected_markets.csv'):
     try:
-        wk2 = spreadsheet.worksheet(sheet_name)
-        sel_df = pd.DataFrame(wk2.get_all_records())
-        sel_df = sel_df[sel_df['question'] != ""].reset_index(drop=True)
-        return sel_df
-    except:
+        if os.path.exists(csv_path):
+            sel_df = pd.read_csv(csv_path)
+            sel_df = sel_df[sel_df['question'] != ""].reset_index(drop=True)
+            print(f"Loaded {len(sel_df)} selected markets from CSV.")
+            return sel_df
+        else:
+            print(f"No selected markets CSV found at {csv_path}. Returning empty dataframe.")
+            return pd.DataFrame()
+    except Exception as e:
+        print(f"Error loading selected markets: {e}")
         return pd.DataFrame()
     
 def get_all_markets(client):

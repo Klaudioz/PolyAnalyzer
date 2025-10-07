@@ -1,2 +1,5 @@
 .env
-CSV.zip
+CSV/*.csv
+!CSV/.gitkeep
+data/*.csv
+credentials.json

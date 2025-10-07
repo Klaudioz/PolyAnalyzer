@@ -2,7 +2,7 @@ Polymarket Liquidity Provider (LP) Data Fetcher
 
 **Overview**
 This script is a Python tool for analysing Polymarket prediction markets, specifically designed for Liquidity Providers (LPs). 
-It fetches real-time market data via the Polymarket ClobClient API, calculates estimated LP rewards per $100 provided (using geometric and simple means), computes annualized volatility across time windows (1h to 30d), and outputs results to CSV files or Google Sheets. 
+It fetches real-time market data via the Polymarket ClobClient API, calculates estimated LP rewards per $100 provided (using geometric and simple means), computes annualized volatility across time windows (1h to 30d), and outputs results to CSV files. 
 Markets are ranked by reward potential while factoring in risk (volatility/reward ratio).
 
 Key outputs:
@@ -19,7 +19,7 @@ This programme is ideal for identifying high-yield, low-risk LP opportunities in
 (b) Order Book Analysis: Simulates LP rewards based on bid/ask depth near midpoint.
 (c) Volatility Calculation: Annualized std dev of log returns from 1m price history.
 (d) Risk-Adjusted Ranking: Composite scores balancing rewards, vol, and price balance.
-(e) Output Options: Local CSVs (data/all_markets.csv, etc.) or Google Sheets integration.
+(e) Output Options: Local CSVs stored in the CSV/ folder.
 (f) Parallel Processing: Fast execution with threading for order books and volatility.
 
 **Prerequisites**
@@ -40,25 +40,13 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 4. Install Dependencies
 pip install -r requirements.txt  # Assumes you add one; see below for manual
 Manual install (core libs):
-pip install py-clob-client gspread gspread-dataframe pandas numpy requests python-dotenv web3
+pip install py-clob-client pandas numpy requests python-dotenv web3
 
 5. Configure Environment Variables (.env)
 Create a .env file in the root directory (ignored by Git). Add your Polymarket wallet details:
 textPK=your_polygon_private_key_here  # Hex string, e.g., 0xabc123... (no 0x prefix if raw)
-SPREADSHEET_URL=https://docs.google.com/spreadsheets/d/your_sheet_id/edit  # Optional, for Sheets output
 
 PK: Your Polygon private key (from wallet like MetaMask). Warning: This enables API/trading—use a dev wallet with minimal funds. Never commit .env!
-SPREADSHEET_URL: Google Sheets link for output (e.g., "All Markets" tab).
-
-5. Google Sheets Setup (credentials.json)
-For writing to Sheets (optional; falls back to read-only CSV):
-
-- Go to Google Cloud Console.
-- Create a project > Enable Google Sheets/Drive APIs.
-- Create a Service Account (IAM & Admin > Service Accounts > Create).
-- Download the JSON key file as credentials.json in root.
-- Share your Sheet with the service account email (from JSON).
-- Security: Add credentials.json to .gitignore—don't commit!
 
 **Usage**
 Run the Script
@@ -66,11 +54,10 @@ bashpython data_updater.py
 
 Fetches ~1000+ markets.
 
-**Outputs:
-**
-data/all_markets.csv: Full ranked list.
-data/volatility_markets.csv: Low-vol (<20 sum) subset.
-data/full_markets.csv: Raw order book data.
+**Outputs:**
+CSV/all_markets.csv: Full ranked list.
+CSV/volatility_markets.csv: Low-vol (<20 sum) subset.
+CSV/full_markets.csv: Raw order book data.
 Console: Top 10 by rewards + progress logs.
 
 
@@ -88,8 +75,6 @@ get_position(marketId): Check holdings value.
 Dependencies
 Add to requirements.txt:
 textpy-clob-client==0.25.0
-gspread==6.1.0
-gspread-dataframe==15.0.0
 pandas==2.2.2
 numpy==1.26.4
 requests==2.32.3
