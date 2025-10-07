@@ -27,6 +27,8 @@ import warnings
 from dotenv import load_dotenv
 import concurrent.futures
 import numpy as np
+import time
+import shutil
 
 load_dotenv()
 
@@ -129,10 +131,13 @@ def get_all_markets(client):
 
             all_markets.append(markets_df)
 
-            if cursor is None:
+            if cursor is None or cursor == "":
                 break
         except Exception as e:
-            print(f"Error fetching markets page: {e}")
+            if "next item should be greater than or equal to 0" in str(e):
+                print(f"Reached end of markets pagination.")
+            else:
+                print(f"Error fetching markets page: {e}")
             break
 
     if not all_markets:
@@ -285,20 +290,22 @@ def process_single_row(row, client):
     asks_df = pd.DataFrame({'price': generate_numbers(ask_from, ask_to, TICK_SIZE), 'size': 0})
 
     try:
-        bids_df = bids_df.merge(bids, on='price', how='left', suffixes=('', '_book')).fillna(0)
-        if 'size_book' in bids_df.columns:
-            bids_df['size'] = bids_df['size'].fillna(0) + bids_df['size_book'].fillna(0)
-            bids_df.drop(columns=['size_book'], inplace=True)
-    except Exception as merge_err:
-        print(f"Merge error for bids: {merge_err}")  # Optional: Spy for bugs
+        if not bids.empty and 'price' in bids.columns:
+            bids_df = bids_df.merge(bids, on='price', how='left', suffixes=('', '_book')).fillna(0)
+            if 'size_book' in bids_df.columns:
+                bids_df['size'] = bids_df['size'].fillna(0) + bids_df['size_book'].fillna(0)
+                bids_df.drop(columns=['size_book'], inplace=True)
+    except Exception:
+        pass
 
     try:
-        asks_df = asks_df.merge(asks, on='price', how='left', suffixes=('', '_book')).fillna(0)
-        if 'size_book' in asks_df.columns:
-            asks_df['size'] = asks_df['size'].fillna(0) + asks_df['size_book'].fillna(0)
-            asks_df.drop(columns=['size_book'], inplace=True)
-    except Exception as merge_err:
-        print(f"Merge error for asks: {merge_err}")  # Optional
+        if not asks.empty and 'price' in asks.columns:
+            asks_df = asks_df.merge(asks, on='price', how='left', suffixes=('', '_book')).fillna(0)
+            if 'size_book' in asks_df.columns:
+                asks_df['size'] = asks_df['size'].fillna(0) + asks_df['size_book'].fillna(0)
+                asks_df.drop(columns=['size_book'], inplace=True)
+    except Exception:
+        pass  # Optional
 
     best_bid_reward = 0
     try:
@@ -584,5 +591,21 @@ def fetch_and_process_data():
 
 if __name__ == "__main__":
     print("Starting data fetch...")
+    start_time = time.time()
     fetch_and_process_data()
-    print("Data fetch complete. Check 'data/*.csv' files for results.")
+    
+    # Cleanup data folder after processing
+    if os.path.exists('data') and os.path.isdir('data'):
+        try:
+            file_count = len([f for f in os.listdir('data') if f.endswith('.csv')])
+            shutil.rmtree('data')
+            print(f"Cleaned up data folder ({file_count} temporary files removed).")
+        except Exception as e:
+            print(f"Warning: Could not clean up data folder: {e}")
+    
+    end_time = time.time()
+    runtime = end_time - start_time
+    minutes = int(runtime // 60)
+    seconds = int(runtime % 60)
+    print("Data fetch complete. Check CSV/*.csv files for results.")
+    print(f"\nTotal runtime: {minutes} minutes {seconds} seconds ({runtime:.2f}s)")

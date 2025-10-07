@@ -4,3 +4,11 @@ CSV/*.zip
 !CSV/.gitkeep
 data/*.csv
 credentials.json
+.DS_Store
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz

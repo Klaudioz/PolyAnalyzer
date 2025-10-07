@@ -11,7 +11,7 @@ Key outputs:
 (b) Volatility metrics for risk assessment.
 (c) Filtered views (e.g., low-vol markets).
 
-This programme is ideal for identifying high-yield, low-risk LP opportunities in events like earnings bets or geopolitics.
+This software is ideal for identifying high-yield, low-risk LP opportunities in events like earnings bets or geopolitics.
 
 **Features**
 
